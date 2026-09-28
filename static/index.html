@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reaction Monitor</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2l12 7v14l-12 7-12-7V9z' fill='%234C8DF6'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #e2e5ea;
+  --text: #16191f;
+  --text-2: #4a5160;
+  --text-3: #7c8494;
+  --accent: #2f6fe0;
+  --track: #e6e9ee;
+  --ok: #17915f;
+  --warn: #b7791f;
+  --bad: #d0473d;
+  --shadow: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
+
+  --r1: #2f6fe0; --r1-bg: #e8f0fd;
+  --r2: #0d8f7a; --r2-bg: #e2f5f1;
+  --r3: #b7701a; --r3-bg: #fbf0e0;
+  --r4: #7a52d6; --r4-bg: #f0ebfc;
+  --r5: #c9405b; --r5-bg: #fcebee;
+
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1016; --surface: #151a22; --surface-2: #1b212b; --border: #262d39;
+    --text: #e8ebf0; --text-2: #a9b1be; --text-3: #737d8c; --accent: #5b93f5; --track: #232a35;
+    --ok: #3ccf8e; --warn: #e3a64a; --bad: #f0685e;
+    --shadow: 0 1px 2px rgba(0,0,0,.3);
+    --r1: #6ea0f7; --r1-bg: rgba(110,160,247,.14);
+    --r2: #3cc9ae; --r2-bg: rgba(60,201,174,.13);
+    --r3: #e8a852; --r3-bg: rgba(232,168,82,.13);
+    --r4: #a88cf2; --r4-bg: rgba(168,140,242,.14);
+    --r5: #ef7a92; --r5-bg: rgba(239,122,146,.13);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1016; --surface: #151a22; --surface-2: #1b212b; --border: #262d39;
+  --text: #e8ebf0; --text-2: #a9b1be; --text-3: #737d8c; --accent: #5b93f5; --track: #232a35;
+  --ok: #3ccf8e; --warn: #e3a64a; --bad: #f0685e;
+  --shadow: 0 1px 2px rgba(0,0,0,.3);
+  --r1: #6ea0f7; --r1-bg: rgba(110,160,247,.14);
+  --r2: #3cc9ae; --r2-bg: rgba(60,201,174,.13);
+  --r3: #e8a852; --r3-bg: rgba(232,168,82,.13);
+  --r4: #a88cf2; --r4-bg: rgba(168,140,242,.14);
+  --r5: #ef7a92; --r5-bg: rgba(239,122,146,.13);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--sans);
+  font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+.num, .mono { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); }
+button { font: inherit; color: inherit; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);
+}
+.topbar-in {
+  max-width: 1180px; margin: 0 auto; padding: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand svg { flex: none; }
+.brand h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+.brand .sub { color: var(--text-3); font-size: 12px; }
+.top-right { display: flex; align-items: center; gap: 10px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
+  font-size: 12.5px; color: var(--text-2); white-space: nowrap;
+}
+.pill b { color: var(--text); font-weight: 600; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex: none; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); animation: pulse 2s infinite; }
+.dot.bad { background: var(--bad); }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 55%, transparent); }
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.icon-btn {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; display: grid; place-items: center; color: var(--text-2);
+}
+.icon-btn:hover { color: var(--text); border-color: var(--text-3); }
+
+/* ---------- layout ---------- */
+main { max-width: 1180px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.card-head h2 { margin: 0; font-size: 14px; font-weight: 650; }
+.card-head .hint { color: var(--text-3); font-size: 12.5px; }
+.eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+
+/* ---------- hero ---------- */
+.hero { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; overflow: hidden; }
+.rxn-panel {
+  padding: 24px; border-right: 1px solid var(--border);
+  background: linear-gradient(160deg, var(--rc-bg, var(--surface-2)) 0%, transparent 75%);
+  display: flex; flex-direction: column; gap: 18px;
+}
+.epoch-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.epoch-num { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.live {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--ok);
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); border-radius: 6px; padding: 2px 7px;
+}
+.rxn-big { display: flex; align-items: center; gap: 16px; }
+.rxn-badge {
+  width: 76px; height: 76px; border-radius: 18px; flex: none; display: grid; place-items: center;
+  background: var(--rc-bg, var(--surface-2)); color: var(--rc, var(--text-2));
+  border: 1px solid color-mix(in srgb, var(--rc, var(--border)) 35%, transparent);
+  font-size: 34px; font-weight: 750; letter-spacing: -.03em;
+}
+.rxn-label { font-size: 28px; font-weight: 750; letter-spacing: -.02em; color: var(--rc, var(--text)); line-height: 1.1; }
+.rxn-name { color: var(--text-2); font-size: 14px; margin-top: 4px; word-break: break-word; }
+.kv { display: grid; gap: 6px; font-size: 12.5px; }
+.kv-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-3); }
+.kv-row span:last-child { color: var(--text-2); }
+.hash {
+  display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px;
+  color: var(--text-2); background: none; border: 0; padding: 0; cursor: pointer;
+}
+.hash:hover { color: var(--text); }
+.hash svg { opacity: .6; }
+
+.prog-panel { padding: 24px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.prog-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.prog-count { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+.prog-count small { font-size: 16px; color: var(--text-3); font-weight: 500; }
+.phase {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 550;
+  padding: 5px 10px; border-radius: 8px; background: var(--surface-2); color: var(--text-2);
+}
+.phase.open { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.phase.late { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+
+.bar-wrap { position: relative; padding-top: 22px; }
+.bar { position: relative; height: 14px; border-radius: 7px; background: var(--track); overflow: hidden; }
+.bar-fill {
+  position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 7px;
+  background: var(--rc, var(--accent)); transition: width .6s ease;
+}
+.bar-fill::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.22));
+}
+.marker { position: absolute; top: 0; bottom: -6px; width: 0; border-left: 2px dashed var(--text-3); }
+.marker span {
+  position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap;
+  font-size: 11px; color: var(--text-3); font-weight: 550;
+}
+.marker.right span { transform: translateX(-100%); padding-right: 6px; }
+.scale { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11.5px; color: var(--text-3); }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.stat { background: var(--surface); padding: 12px 14px; min-width: 0; }
+.stat .v { font-size: 20px; font-weight: 650; letter-spacing: -.01em; margin-top: 2px; white-space: nowrap; }
+.stat .s { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.next-note { font-size: 12.5px; color: var(--text-3); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.next-note b { color: var(--text-2); font-weight: 600; }
+
+/* ---------- chips ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 7px; border-radius: 999px;
+  background: var(--rc-bg); color: var(--rc); font-weight: 650; font-size: 12.5px; white-space: nowrap;
+}
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.rx1 { --rc: var(--r1); --rc-bg: var(--r1-bg); }
+.rx2 { --rc: var(--r2); --rc-bg: var(--r2-bg); }
+.rx3 { --rc: var(--r3); --rc-bg: var(--r3-bg); }
+.rx4 { --rc: var(--r4); --rc-bg: var(--r4-bg); }
+.rx5 { --rc: var(--r5); --rc-bg: var(--r5-bg); }
+
+/* ---------- timeline strip ---------- */
+.strip-body { padding: 18px 20px 20px; display: grid; gap: 14px; }
+.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; height: 34px; }
+.strip .cell {
+  border-radius: 4px; background: var(--rc); opacity: .85; cursor: pointer; position: relative;
+  transition: opacity .15s, transform .15s;
+}
+.strip .cell:hover { opacity: 1; transform: scaleY(1.12); }
+.strip .cell.cur { outline: 2px solid var(--text); outline-offset: 2px; opacity: 1; }
+.strip-scale { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-3); margin-top: -6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--text-2); }
+.legend .item { display: inline-flex; align-items: center; gap: 8px; }
+.legend .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--rc); }
+.legend .cnt { color: var(--text-3); }
+.tooltip {
+  position: fixed; z-index: 50; pointer-events: none; padding: 8px 10px; border-radius: 8px;
+  background: var(--text); color: var(--bg); font-size: 12px; line-height: 1.45;
+  box-shadow: 0 6px 20px rgba(0,0,0,.2); opacity: 0; transition: opacity .1s; white-space: nowrap;
+}
+
+/* ---------- lookup ---------- */
+.lookup { display: flex; gap: 8px; align-items: center; }
+.input {
+  height: 34px; width: 150px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); font: inherit; font-variant-numeric: tabular-nums;
+}
+.input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); border-color: var(--accent); }
+.btn {
+  height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; font-weight: 550; white-space: nowrap;
+}
+.btn:hover { border-color: var(--text-3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .55; cursor: default; }
+.lookup-result { padding: 0 20px; }
+.lookup-result:not(:empty) { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+.lr {
+  display: flex; align-items: center; gap: 14px 22px; flex-wrap: wrap; padding: 12px 14px;
+  border-radius: 10px; background: var(--surface-2); font-size: 13px;
+}
+.lr .muted { color: var(--text-3); }
+.lr.msg { color: var(--text-2); }
+.lr .close { margin-left: auto; background: none; border: 0; cursor: pointer; color: var(--text-3); font-size: 18px; line-height: 1; }
+
+/* ---------- table ---------- */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 11px 20px; white-space: nowrap; }
+th {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-3); background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+td { border-bottom: 1px solid var(--border); }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover td { background: var(--surface-2); }
+tr.flash td { animation: flash 1.6s ease; }
+@keyframes flash { from { background: color-mix(in srgb, var(--accent) 16%, transparent); } }
+td.epoch { font-weight: 650; }
+td .muted, .muted { color: var(--text-3); }
+.table-foot { display: flex; justify-content: center; padding: 14px; border-top: 1px solid var(--border); }
+
+footer {
+  max-width: 1180px; margin: 0 auto; padding: 4px 24px 40px; color: var(--text-3); font-size: 12px;
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+footer code { font-family: var(--mono); color: var(--text-2); }
+
+.banner {
+  display: none; padding: 10px 14px; border-radius: 10px; font-size: 13px;
+  background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad);
+  border: 1px solid color-mix(in srgb, var(--bad) 30%, transparent);
+}
+.banner.show { display: block; }
+.skeleton { color: transparent !important; background: var(--surface-2); border-radius: 6px; animation: sk 1.2s infinite alternate; }
+@keyframes sk { to { opacity: .5; } }
+.toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
+  background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 12.5px;
+  transition: all .2s; pointer-events: none; z-index: 60;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; }
+  .rxn-panel { border-right: 0; border-bottom: 1px solid var(--border); }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .topbar-in, main { padding-left: 16px; padding-right: 16px; }
+  footer { padding-left: 16px; padding-right: 16px; }
+  .brand .sub, #blockPill { display: none; }
+  .rxn-panel, .prog-panel { padding: 18px; }
+  th, td { padding: 10px 14px; }
+  .col-hash, .col-blocks { display: none; }
+  td.name-col { white-space: normal; }
+  .lookup { width: 100%; }
+  .input { flex: 1; width: auto; }
+  .strip { height: 28px; gap: 2px; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 2l12 7v14l-12 7-12-7V9z" fill="var(--accent)"/>
+        <path d="M16 9l6 3.5v7L16 23l-6-3.5v-7z" fill="none" stroke="#fff" stroke-width="2"/>
+      </svg>
+      <div>
+        <h1>Reaction Monitor</h1>
+        <div class="sub">Nova · allowed reaction per epoch</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <span class="pill" id="blockPill">Block <b class="num" id="topBlock">—</b></span>
+      <span class="pill" title=""><span class="dot" id="connDot"></span><span id="netName">connecting…</span></span>
+      <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="banner" id="banner"></div>
+
+  <!-- ===== current epoch ===== -->
+  <section class="card hero" id="hero">
+    <div class="rxn-panel">
+      <div class="epoch-line">
+        <div>
+          <div class="eyebrow">Current epoch</div>
+          <div class="epoch-num num" id="curEpoch"><span class="skeleton">000000</span></div>
+        </div>
+        <span class="live">LIVE</span>
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:10px">Allowed reaction</div>
+        <div class="rxn-big">
+          <div class="rxn-badge" id="rxnBadge">–</div>
+          <div style="min-width:0">
+            <div class="rxn-label" id="rxnLabel">rxn:–</div>
+            <div class="rxn-name" id="rxnName">loading…</div>
+          </div>
+        </div>
+      </div>
+      <div class="kv">
+        <div class="kv-row"><span>Start block</span><span class="mono" id="startBlock">—</span></div>
+        <div class="kv-row"><span>End block</span><span class="mono" id="endBlock">—</span></div>
+        <div class="kv-row"><span>Start block hash</span><button class="hash" id="startHash" title="Copy full hash">—</button></div>
+      </div>
+    </div>
+
+    <div class="prog-panel">
+      <div class="prog-top">
+        <div>
+          <div class="eyebrow">Epoch progress</div>
+          <div class="prog-count num"><span id="into">—</span> <small>/ <span id="len">—</span> blocks</small></div>
+        </div>
+        <span class="phase" id="phase">—</span>
+      </div>
+
+      <div class="bar-wrap">
+        <div class="bar"><div class="bar-fill" id="fill"></div></div>
+        <div class="marker" id="marker" hidden><span id="markerLabel"></span></div>
+        <div class="scale num"><span id="scaleStart">—</span><span id="pct">—</span><span id="scaleEnd">—</span></div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="eyebrow">Blocks passed</div><div class="v num" id="sPassed">—</div><div class="s" id="sPassedSub">&nbsp;</div></div>
+        <div class="stat"><div class="eyebrow">Blocks left</div><div class="v num" id="sLeft">—</div><div class="s" id="sLeftSub">&nbsp;</div></div>
+        <div class="stat"><div class="eyebrow">Time left</div><div class="v num" id="sTime">—</div><div class="s" id="sTimeSub">&nbsp;</div></div>
+        <div class="stat"><div class="eyebrow">Current block</div><div class="v num" id="sBlock">—</div><div class="s" id="sBlockSub">&nbsp;</div></div>
+      </div>
+
+      <div class="next-note" id="nextNote">&nbsp;</div>
+    </div>
+  </section>
+
+  <!-- ===== timeline ===== -->
+  <section class="card">
+    <div class="card-head">
+      <h2>Recent epochs</h2>
+      <span class="hint" id="stripHint">oldest → newest</span>
+    </div>
+    <div class="strip-body">
+      <div class="strip" id="strip"></div>
+      <div class="strip-scale"><span id="stripFrom"></span><span id="stripTo"></span></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </section>
+
+  <!-- ===== history ===== -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>Epoch history</h2>
+        <div class="hint">Future epochs can't be known: the reaction comes from the epoch's first block hash.</div>
+      </div>
+      <form class="lookup" id="lookupForm" autocomplete="off">
+        <input class="input" id="lookupInput" type="number" min="0" placeholder="Find epoch…" inputmode="numeric">
+        <button class="btn primary" type="submit">Look up</button>
+      </form>
+    </div>
+    <div class="lookup-result" id="lookupResult"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Epoch</th>
+            <th>Allowed reaction</th>
+            <th>Name</th>
+            <th class="col-blocks">Blocks</th>
+            <th class="col-hash">Start hash</th>
+            <th>Started</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="table-foot"><button class="btn" id="moreBtn">Load older epochs</button></div>
+  </section>
+</main>
+
+<footer>
+  <span>allowed = <code>int(hash(epoch × <span id="fLen">361</span>), 16) mod <span id="fTot">5</span> + 1</code></span>
+  <span id="fEndpoint"></span>
+</footer>
+
+<div class="tooltip" id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const STATUS_MS = 3000;
+  const PAGE = 48;
+
+  let S = null;              // last /api/status
+  let statusAt = 0;          // client time when S arrived
+  let history = [];          // past epochs, newest first
+  let nextBefore = null;
+  let loadingMore = false;
+  let names = {};
+
+  // ---------- helpers ----------
+  const fmt = (n) => Number(n).toLocaleString("en-US");
+  const rxClass = (id) => "rx" + (((id - 1) % 5) + 1);
+  const short = (h) => h ? h.slice(0, 10) + "…" + h.slice(-6) : "—";
+  const prettyName = (n) => (n || "").replace(/_/g, " ");
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function dur(sec) {
+    sec = Math.max(0, Math.round(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    if (h) return `${h}h ${String(m).padStart(2, "0")}m`;
+    if (m) return `${m}m ${String(s).padStart(2, "0")}s`;
+    return `${s}s`;
+  }
+  function ago(ts) {
+    const d = Date.now() / 1000 - ts;
+    if (d < 90) return "just now";
+    if (d < 3600) return `${Math.round(d / 60)} min ago`;
+    if (d < 86400) { const h = Math.floor(d / 3600), m = Math.floor((d % 3600) / 60); return m ? `${h}h ${m}m ago` : `${h}h ago`; }
+    const days = Math.floor(d / 86400), h = Math.floor((d % 86400) / 3600);
+    return h ? `${days}d ${h}h ago` : `${days}d ago`;
+  }
+  function clock(ts) {
+    const d = new Date(ts * 1000), now = new Date();
+    const t = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (d.toDateString() === now.toDateString()) return t;
+    return d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + t;
+  }
+  function toast(msg) {
+    const t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 1400);
+  }
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); toast("Copied"); }
+    catch { toast("Copy failed"); }
+  }
+  async function api(path) {
+    const r = await fetch(path, { cache: "no-store" });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) { const e = new Error(body.error || r.statusText); e.body = body; e.status = r.status; throw e; }
+    return body;
+  }
+  const chip = (rx) => `<span class="chip ${rxClass(rx.id)}">${esc(rx.label)}</span>`;
+  const copyIcon = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
+
+  // ---------- theme ----------
+  function applyTheme(t) { if (t) document.documentElement.setAttribute("data-theme", t); }
+  try { applyTheme(localStorage.getItem("rxn-theme")); } catch {}
+  $("themeBtn").addEventListener("click", () => {
+    const cur = document.documentElement.getAttribute("data-theme")
+      || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const next = cur === "dark" ? "light" : "dark";
+    applyTheme(next);
+    try { localStorage.setItem("rxn-theme", next); } catch {}
+  });
+
+  // ---------- current epoch ----------
+  function secondsLeft() {
+    if (!S) return 0;
+    // Time since the head block was first seen by the server, advanced locally between polls.
+    const sinceHead = (S.server_time - S.head_seen_at) + (Date.now() - statusAt) / 1000;
+    return S.blocks_remaining * S.block_time - Math.min(sinceHead, S.block_time);
+  }
+
+  function renderStatus() {
+    if (!S) return;
+    const L = S.epoch_length, into = S.blocks_into_epoch, left = S.blocks_remaining;
+    const rx = S.reaction;
+    const hero = $("hero");
+    hero.className = "card hero" + (rx ? " " + rxClass(rx.id) : "");
+
+    $("curEpoch").textContent = "#" + fmt(S.current_epoch);
+    $("topBlock").textContent = fmt(S.current_block);
+    $("rxnBadge").textContent = rx ? rx.id : "?";
+    $("rxnLabel").textContent = rx ? rx.label : "unknown";
+    $("rxnName").textContent = rx ? prettyName(rx.name) : "start block hash unavailable";
+    $("startBlock").textContent = fmt(S.epoch_start_block);
+    $("endBlock").textContent = fmt(S.epoch_end_block);
+    const hb = $("startHash");
+    hb.innerHTML = S.start_block_hash ? esc(short(S.start_block_hash)) + copyIcon : "—";
+    hb.onclick = S.start_block_hash ? () => copy(S.start_block_hash) : null;
+
+    $("into").textContent = fmt(into);
+    $("len").textContent = fmt(L);
+    const pct = (into / L) * 100;
+    $("fill").style.width = pct.toFixed(2) + "%";
+    $("pct").textContent = pct.toFixed(1) + "%";
+    $("scaleStart").textContent = fmt(S.epoch_start_block);
+    $("scaleEnd").textContent = fmt(S.epoch_end_block);
+
+    $("sPassed").textContent = fmt(into);
+    $("sPassedSub").textContent = `≈ ${dur(into * S.block_time)} elapsed`;
+    $("sLeft").textContent = fmt(left);
+    $("sLeftSub").textContent = `until block ${fmt(S.next_epoch_start_block)}`;
+    $("sBlock").textContent = fmt(S.current_block);
+
+    // Late-submit marker + phase
+    const trig = S.late_submit_trigger_block;
+    const m = $("marker"), ph = $("phase");
+    if (trig != null && trig > 0 && trig < L) {
+      const mp = (trig / L) * 100;
+      m.hidden = false; m.style.left = mp + "%";
+      m.classList.toggle("right", mp > 80);
+      $("markerLabel").textContent = `late submit · ${trig}`;
+      if (into < trig) { ph.className = "phase"; ph.textContent = `${fmt(trig - into)} blocks to late-submit window`; }
+      else { ph.className = "phase open"; ph.textContent = "Late-submit window open"; }
+    } else {
+      m.hidden = true;
+      ph.className = "phase"; ph.textContent = `${pct.toFixed(0)}% complete`;
+    }
+    if (left <= 10) { ph.className = "phase late"; ph.textContent = `Epoch ending · ${left} block${left === 1 ? "" : "s"} left`; }
+
+    // Connection
+    $("connDot").className = "dot " + (S.connected ? "ok" : "bad");
+    $("netName").textContent = S.network;
+    $("fLen").textContent = L;
+    $("fTot").textContent = S.total_reactions;
+    $("fEndpoint").textContent = S.endpoint;
+
+    document.title = `${rx ? rx.label : "rxn:?"} · ${into}/${L} · Epoch ${S.current_epoch}`;
+    tick();
+  }
+
+  function tick() {
+    if (!S) return;
+    const sec = secondsLeft();
+    $("sTime").textContent = dur(sec);
+    $("sTimeSub").textContent = `ends ≈ ${clock(Date.now() / 1000 + sec)}`;
+    const sinceHead = (S.server_time - S.head_seen_at) + (Date.now() - statusAt) / 1000;
+    const nextIn = Math.max(0, S.block_time - sinceHead);
+    $("sBlockSub").textContent = nextIn > 0 ? `next in ~${Math.ceil(nextIn)}s` : "next block due";
+    $("nextNote").innerHTML =
+      `Next epoch <b>#${fmt(S.current_epoch + 1)}</b> starts at block <b>${fmt(S.next_epoch_start_block)}</b> ` +
+      `(≈ ${clock(Date.now() / 1000 + sec)}) — its reaction is revealed only when that block is produced.`;
+  }
+
+  let failCount = 0;
+  async function pollStatus() {
+    try {
+      const prevEpoch = S ? S.current_epoch : null;
+      S = await api("/api/status");
+      statusAt = Date.now();
+      names = S.reaction_names || names;
+      failCount = 0;
+      $("banner").classList.remove("show");
+      renderStatus();
+      if (prevEpoch !== null && S.current_epoch !== prevEpoch) await onEpochChange(prevEpoch);
+      else renderStrip();
+    } catch (e) {
+      failCount++;
+      $("connDot").className = "dot bad";
+      if (failCount >= 2) {
+        $("banner").textContent = `Can't reach the chain right now (${e.message}). Retrying…`;
+        $("banner").classList.add("show");
+      }
+    } finally {
+      setTimeout(pollStatus, STATUS_MS);
+    }
+  }
+
+  async function onEpochChange(prevEpoch) {
+    // The epoch that just ended moves into history.
+    try {
+      const rec = await api(`/api/epoch/${prevEpoch}`);
+      if (!history.length || history[0].epoch < rec.epoch) {
+        history.unshift(rec);
+        renderTable(rec.epoch);
+      }
+    } catch {}
+    renderStrip();
+    toast(`Epoch #${fmt(S.current_epoch)} started · ${S.reaction ? S.reaction.label : ""}`);
+  }
+
+  // ---------- history ----------
+  async function loadMore() {
+    if (loadingMore || nextBefore === 0) return;
+    loadingMore = true;
+    const btn = $("moreBtn");
+    btn.disabled = true; btn.textContent = "Loading…";
+    try {
+      const q = nextBefore == null ? `limit=${PAGE}` : `before=${nextBefore}&limit=${PAGE}`;
+      const res = await api(`/api/epochs?${q}`);
+      const seen = new Set(history.map((h) => h.epoch));
+      for (const it of res.items) if (!seen.has(it.epoch)) history.push(it);
+      history.sort((a, b) => b.epoch - a.epoch);
+      nextBefore = res.next_before == null ? 0 : res.next_before;
+      renderTable();
+      renderStrip();
+    } catch (e) {
+      toast("Failed to load history");
+    } finally {
+      loadingMore = false;
+      btn.disabled = nextBefore === 0;
+      btn.textContent = nextBefore === 0 ? "No older epochs" : "Load older epochs";
+    }
+  }
+
+  function rowHTML(h, flash) {
+    const rx = h.reaction;
+    return `<tr${flash ? ' class="flash"' : ""}>
+      <td class="epoch num">#${fmt(h.epoch)}</td>
+      <td>${chip(rx)}</td>
+      <td class="name-col">${esc(prettyName(rx.name))}</td>
+      <td class="col-blocks mono muted">${fmt(h.start_block)} – ${fmt(h.end_block)}</td>
+      <td class="col-hash"><button class="hash" data-hash="${esc(h.start_block_hash)}" title="Copy full hash">${esc(short(h.start_block_hash))}${copyIcon}</button></td>
+      <td><span title="${esc(new Date(h.approx_start_ts * 1000).toLocaleString())}">${ago(h.approx_start_ts)}</span> <span class="muted">· ${clock(h.approx_start_ts)}</span></td>
+    </tr>`;
+  }
+
+  function renderTable(flashEpoch) {
+    $("rows").innerHTML = history.length
+      ? history.map((h) => rowHTML(h, h.epoch === flashEpoch)).join("")
+      : `<tr><td colspan="6" class="muted" style="text-align:center;padding:28px">Loading…</td></tr>`;
+  }
+
+  $("rows").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-hash]");
+    if (b) copy(b.dataset.hash);
+  });
+  $("moreBtn").addEventListener("click", loadMore);
+
+  // ---------- timeline strip ----------
+  function renderStrip() {
+    const past = history.slice(0, PAGE - 1).reverse();
+    const cells = past.map((h) => ({ ...h, cur: false }));
+    if (S && S.reaction) cells.push({
+      epoch: S.current_epoch, reaction: S.reaction, start_block: S.epoch_start_block,
+      approx_start_ts: Date.now() / 1000 - S.blocks_into_epoch * S.block_time, cur: true,
+    });
+    $("strip").innerHTML = cells.map((c, i) =>
+      `<div class="cell ${rxClass(c.reaction.id)}${c.cur ? " cur" : ""}" data-i="${i}"></div>`).join("");
+    $("strip")._cells = cells;
+    if (cells.length) {
+      $("stripFrom").textContent = `#${fmt(cells[0].epoch)}`;
+      $("stripTo").textContent = cells[cells.length - 1].cur ? `#${fmt(cells[cells.length - 1].epoch)} (now)` : `#${fmt(cells[cells.length - 1].epoch)}`;
+      $("stripHint").textContent = `last ${cells.length} epochs · ≈ ${dur(cells.length * (S ? S.epoch_length * S.block_time : 4332))}`;
+    }
+    // legend with counts over the strip window
+    const total = S ? S.total_reactions : 5;
+    const counts = {};
+    for (const c of cells) counts[c.reaction.id] = (counts[c.reaction.id] || 0) + 1;
+    let lg = "";
+    for (let id = 1; id <= total; id++) {
+      lg += `<span class="item ${rxClass(id)}"><span class="sw"></span>rxn:${id} <span class="muted">${esc(prettyName(names[id] || ""))}</span> <span class="cnt num">× ${counts[id] || 0}</span></span>`;
+    }
+    $("legend").innerHTML = lg;
+  }
+
+  const tip = $("tip");
+  $("strip").addEventListener("mousemove", (e) => {
+    const el = e.target.closest(".cell");
+    if (!el) { tip.style.opacity = 0; return; }
+    const c = $("strip")._cells[+el.dataset.i];
+    tip.innerHTML = `<b>Epoch #${fmt(c.epoch)}</b>${c.cur ? " · current" : ""}<br>${esc(c.reaction.label)} · ${esc(prettyName(c.reaction.name))}<br>block ${fmt(c.start_block)} · ${c.cur ? "started " : ""}${ago(c.approx_start_ts)}`;
+    const x = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8);
+    tip.style.left = x + "px"; tip.style.top = (e.clientY + 14) + "px"; tip.style.opacity = 1;
+  });
+  $("strip").addEventListener("mouseleave", () => { tip.style.opacity = 0; });
+  $("strip").addEventListener("click", (e) => {
+    const el = e.target.closest(".cell");
+    if (el) lookup($("strip")._cells[+el.dataset.i].epoch);
+  });
+
+  // ---------- lookup ----------
+  function closeBtn() { return `<button class="close" type="button" aria-label="Close" onclick="document.getElementById('lookupResult').innerHTML=''">×</button>`; }
+
+  async function lookup(epoch) {
+    const box = $("lookupResult");
+    if (!Number.isInteger(epoch) || epoch < 0) { box.innerHTML = `<div class="lr msg">Enter a valid epoch number.${closeBtn()}</div>`; return; }
+    box.innerHTML = `<div class="lr msg">Looking up epoch #${fmt(epoch)}…</div>`;
+    try {
+      const r = await api(`/api/epoch/${epoch}`);
+      box.innerHTML = `<div class="lr">
+        <b class="num">Epoch #${fmt(r.epoch)}</b>${r.is_current ? ' <span class="live">CURRENT</span>' : ""}
+        ${chip(r.reaction)} <span>${esc(prettyName(r.reaction.name))}</span>
+        <span class="muted mono">blocks ${fmt(r.start_block)} – ${fmt(r.end_block)}</span>
+        <button class="hash" data-hash="${esc(r.start_block_hash)}">${esc(short(r.start_block_hash))}${copyIcon}</button>
+        <span class="muted">${r.is_current ? "started " : ""}${ago(r.approx_start_ts)}</span>
+        ${closeBtn()}</div>`;
+      box.querySelector("[data-hash]").onclick = () => copy(r.start_block_hash);
+    } catch (e) {
+      const b = e.body || {};
+      if (b.error === "future epoch") {
+        box.innerHTML = `<div class="lr msg">
+          <span><b>Epoch #${fmt(epoch)}</b> hasn't started yet. It begins at block <b class="num">${fmt(b.start_block)}</b>
+          (${fmt(b.blocks_until_start)} blocks, ≈ ${dur(b.eta_seconds)} · ${clock(Date.now() / 1000 + b.eta_seconds)}).
+          Its reaction depends on that block's hash, so it can't be known in advance.</span>${closeBtn()}</div>`;
+      } else {
+        box.innerHTML = `<div class="lr msg">Lookup failed: ${esc(e.message)}${closeBtn()}</div>`;
+      }
+    }
+  }
+  $("lookupForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("lookupInput").value.trim();
+    lookup(v === "" ? NaN : Number(v));
+  });
+
+  // ---------- boot ----------
+  renderTable();
+  setInterval(tick, 1000);
+  setInterval(() => { if (history.length) renderTable(); }, 60000); // refresh "x min ago"
+  pollStatus().then(loadMore);
+})();
+</script>
+</body>
+</html>

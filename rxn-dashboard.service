@@ -1,0 +1,16 @@
+# systemd unit: copy to /etc/systemd/system/ and adjust the paths below.
+#   sudo cp rxn-dashboard.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now rxn-dashboard
+[Unit]
+Description=Nova reaction monitor dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/rxn-dashboard
+ExecStart=/opt/rxn-dashboard/venv/bin/python server.py --port 8080
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
