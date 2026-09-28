@@ -2,10 +2,13 @@
 
 A small web dashboard that shows the Nova **allowed reaction** for every epoch and
 the **live progress of the current epoch** (blocks passed / left, time left,
-late-submit window).
+scoring-finished and late-submit marks), plus the SN68 alpha price and TAO/USD
+price in the header.
 
 It's fully standalone. It doesn't import the nova project or bittensor, and it
-reads the chain over plain Substrate JSON-RPC.
+reads the chain over plain Substrate JSON-RPC. The alpha price comes from the
+chain (`SwapRuntimeApi_current_alpha_price`); the TAO/USD price comes from
+CoinGecko, with Binance as a fallback.
 
 ## How the reaction is derived
 
@@ -55,6 +58,9 @@ Each option can be set as a command-line flag or as an environment variable.
 | `--total-reactions` | `TOTAL_REACTIONS` | `5` | reaction count (`rxn:1..N`) |
 | `--block-time` | `BLOCK_TIME` | `12` | seconds per block (for time estimates) |
 | `--late-submit-remaining` | `LATE_SUBMIT_REMAINING` | `41` | marks the late-submit trigger on the bar (`0` = hide) |
+| `--scoring-finished-block` | `SCORING_FINISHED_BLOCK` | `261` | marks where scoring finishes on the bar, in blocks into the epoch (`0` = hide) |
+| `--netuid` | `NETUID` | `68` | subnet whose alpha price is shown in the header |
+| `--price-interval` | `PRICE_INTERVAL` | `30` | seconds between price refreshes |
 | `--poll-interval` | `POLL_INTERVAL` | `3` | seconds between chain polls |
 
 Hashes of past epochs are cached in `data/` so history loads instantly after the

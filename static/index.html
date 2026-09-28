@@ -86,6 +86,7 @@ button { font: inherit; color: inherit; }
   font-size: 12.5px; color: var(--text-2); white-space: nowrap;
 }
 .pill b { color: var(--text); font-weight: 600; }
+.pill .unit { color: var(--text-3); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); flex: none; }
 .dot.ok { background: var(--ok); box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); animation: pulse 2s infinite; }
 .dot.bad { background: var(--bad); }
@@ -157,7 +158,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px; display: grid; grid-tem
 .phase.open { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
 .phase.late { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
 
-.bar-wrap { position: relative; padding-top: 22px; }
+.bar-wrap { position: relative; padding-top: 40px; }
 .bar { position: relative; height: 14px; border-radius: 7px; background: var(--track); overflow: hidden; }
 .bar-fill {
   position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 7px;
@@ -173,6 +174,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px; display: grid; grid-tem
   font-size: 11px; color: var(--text-3); font-weight: 550;
 }
 .marker.right span { transform: translateX(-100%); padding-right: 6px; }
+.marker.low { top: 18px; }
 .scale { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11.5px; color: var(--text-3); }
 
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -287,6 +289,8 @@ footer code { font-family: var(--mono); color: var(--text-2); }
   .topbar-in, main { padding-left: 16px; padding-right: 16px; }
   footer { padding-left: 16px; padding-right: 16px; }
   .brand .sub, #blockPill { display: none; }
+  .top-right { gap: 6px; }
+  .pill { padding: 0 9px; }
   .rxn-panel, .prog-panel { padding: 18px; }
   th, td { padding: 10px 14px; }
   .col-hash, .col-blocks { display: none; }
@@ -312,6 +316,8 @@ footer code { font-family: var(--mono); color: var(--text-2); }
       </div>
     </div>
     <div class="top-right">
+      <span class="pill" id="alphaPill" title="">α <span id="alphaNet">SN68</span> <b class="num" id="alphaPrice">—</b> <span class="unit">τ</span></span>
+      <span class="pill" id="taoPill" title="">TAO <b class="num" id="taoPrice">—</b></span>
       <span class="pill" id="blockPill">Block <b class="num" id="topBlock">—</b></span>
       <span class="pill" title=""><span class="dot" id="connDot"></span><span id="netName">connecting…</span></span>
       <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
@@ -362,7 +368,8 @@ footer code { font-family: var(--mono); color: var(--text-2); }
 
       <div class="bar-wrap">
         <div class="bar"><div class="bar-fill" id="fill"></div></div>
-        <div class="marker" id="marker" hidden><span id="markerLabel"></span></div>
+        <div class="marker" id="scoreMarker" hidden><span id="scoreMarkerLabel"></span></div>
+        <div class="marker low" id="marker" hidden><span id="markerLabel"></span></div>
         <div class="scale num"><span id="scaleStart">—</span><span id="pct">—</span><span id="scaleEnd">—</span></div>
       </div>
 
@@ -540,21 +547,42 @@ footer code { font-family: var(--mono); color: var(--text-2); }
     $("sLeftSub").textContent = `until block ${fmt(S.next_epoch_start_block)}`;
     $("sBlock").textContent = fmt(S.current_block);
 
-    // Late-submit marker + phase
-    const trig = S.late_submit_trigger_block;
-    const m = $("marker"), ph = $("phase");
-    if (trig != null && trig > 0 && trig < L) {
-      const mp = (trig / L) * 100;
-      m.hidden = false; m.style.left = mp + "%";
+    // Scoring-finished + late-submit markers, phase shows the next one ahead
+    const trig = S.late_submit_trigger_block, score = S.scoring_finished_block;
+    const ph = $("phase");
+    const placeMarker = (m, label, block, text) => {
+      const on = block != null && block > 0 && block < L;
+      m.hidden = !on;
+      if (!on) return false;
+      const mp = (block / L) * 100;
+      m.style.left = mp + "%";
       m.classList.toggle("right", mp > 80);
-      $("markerLabel").textContent = `late submit · ${trig}`;
-      if (into < trig) { ph.className = "phase"; ph.textContent = `${fmt(trig - into)} blocks to late-submit window`; }
-      else { ph.className = "phase open"; ph.textContent = "Late-submit window open"; }
+      label.textContent = `${text} · ${block}`;
+      return true;
+    };
+    const hasScore = placeMarker($("scoreMarker"), $("scoreMarkerLabel"), score, "scoring finished");
+    const hasTrig = placeMarker($("marker"), $("markerLabel"), trig, "late submit");
+    if (hasScore && into < score) {
+      ph.className = "phase"; ph.textContent = `${fmt(score - into)} blocks to scoring finished`;
+    } else if (hasTrig && into < trig) {
+      ph.className = "phase"; ph.textContent = (hasScore ? "Scoring finished · " : "") + `${fmt(trig - into)} blocks to late-submit window`;
+    } else if (hasTrig) {
+      ph.className = "phase open"; ph.textContent = "Late-submit window open";
+    } else if (hasScore) {
+      ph.className = "phase open"; ph.textContent = "Scoring finished";
     } else {
-      m.hidden = true;
       ph.className = "phase"; ph.textContent = `${pct.toFixed(0)}% complete`;
     }
     if (left <= 10) { ph.className = "phase late"; ph.textContent = `Epoch ending · ${left} block${left === 1 ? "" : "s"} left`; }
+
+    // Prices
+    const P = S.prices || {};
+    $("alphaNet").textContent = "SN" + (P.netuid ?? "");
+    $("alphaPrice").textContent = P.alpha_tao != null ? P.alpha_tao.toFixed(4) : "—";
+    $("taoPrice").textContent = P.tao_usd != null ? "$" + P.tao_usd.toFixed(2) : "—";
+    const upd = P.updated_at ? ` · updated ${ago(P.updated_at)}` : "";
+    $("alphaPill").title = (P.alpha_usd != null ? `≈ $${P.alpha_usd.toFixed(2)} per alpha` : "alpha price in TAO") + upd;
+    $("taoPill").title = "TAO / USD" + upd;
 
     // Connection
     $("connDot").className = "dot " + (S.connected ? "ok" : "bad");

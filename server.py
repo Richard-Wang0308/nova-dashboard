@@ -51,6 +51,14 @@ REACTION_NAMES = {
     5: "suzuki_bromide_then_chloride",
 }
 
+# TAO/USD sources, tried in order.
+TAO_USD_SOURCES = (
+    ("https://api.coingecko.com/api/v3/simple/price?ids=bittensor&vs_currencies=usd",
+     lambda d: float(d["bittensor"]["usd"])),
+    ("https://api.binance.com/api/v3/ticker/price?symbol=TAOUSDT",
+     lambda d: float(d["price"])),
+)
+
 # A block hash is only cached once it is this far behind the head, so a
 # short reorg can never leave a wrong hash stuck in the cache.
 CACHE_SAFETY_BLOCKS = 20
@@ -159,6 +167,9 @@ class Monitor:
         self.total_reactions = args.total_reactions
         self.block_time = args.block_time
         self.late_submit_remaining = args.late_submit_remaining
+        self.scoring_finished_block = args.scoring_finished_block
+        self.netuid = args.netuid
+        self.price_interval = args.price_interval
         self.poll_interval = args.poll_interval
 
         self.rpc = SubstrateRPC(self.url)
@@ -173,6 +184,10 @@ class Monitor:
         self.cache: Dict[int, str] = self._load_cache()
         self._cache_dirty = False
         self._fetch_sem = asyncio.Semaphore(16)
+
+        self.alpha_tao: Optional[float] = None
+        self.tao_usd: Optional[float] = None
+        self.prices_at: float = 0.0
 
     # ---- cache ------------------------------------------------------------
     def _load_cache(self) -> Dict[int, str]:
@@ -249,6 +264,7 @@ class Monitor:
         remaining = L - into
         block_hash = await self.epoch_hash(epoch)
         trigger = L - self.late_submit_remaining if self.late_submit_remaining > 0 else None
+        scoring = self.scoring_finished_block if 0 < self.scoring_finished_block < L else None
         return {
             "network": self.network,
             "endpoint": self.url,
@@ -268,8 +284,56 @@ class Monitor:
             "blocks_into_epoch": into,
             "blocks_remaining": remaining,
             "late_submit_trigger_block": trigger,
+            "scoring_finished_block": scoring,
+            "prices": self.prices(),
             "start_block_hash": block_hash,
             "reaction": self.reaction(block_hash) if block_hash else None,
+        }
+
+    # ---- prices -----------------------------------------------------------
+    async def fetch_alpha_price(self) -> float:
+        """Subnet alpha price in TAO, via the Swap runtime API (u16 netuid -> u64 rao)."""
+        result = await self.rpc.call(
+            "state_call", ["SwapRuntimeApi_current_alpha_price", "0x" + self.netuid.to_bytes(2, "little").hex()]
+        )
+        return int.from_bytes(bytes.fromhex(result[2:]), "little") / 1e9
+
+    async def fetch_tao_usd(self) -> float:
+        last_exc: Optional[Exception] = None
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+            for url, parse in TAO_USD_SOURCES:
+                try:
+                    async with session.get(url) as r:
+                        r.raise_for_status()
+                        return parse(await r.json(content_type=None))
+                except Exception as e:
+                    last_exc = e
+        raise ConnectionError(f"TAO/USD unavailable: {last_exc}")
+
+    async def price_loop(self) -> None:
+        while True:
+            alpha, usd = await asyncio.gather(
+                self.fetch_alpha_price(), self.fetch_tao_usd(), return_exceptions=True
+            )
+            for name, value in (("alpha price", alpha), ("TAO/USD", usd)):
+                if isinstance(value, BaseException):
+                    log.warning("%s fetch failed: %s", name, value)
+            if not isinstance(alpha, BaseException):
+                self.alpha_tao = alpha
+            if not isinstance(usd, BaseException):
+                self.tao_usd = usd
+            if not isinstance(alpha, BaseException) or not isinstance(usd, BaseException):
+                self.prices_at = time.time()
+            await asyncio.sleep(self.price_interval)
+
+    def prices(self) -> Dict[str, Any]:
+        return {
+            "netuid": self.netuid,
+            "alpha_tao": self.alpha_tao,
+            "tao_usd": self.tao_usd,
+            "alpha_usd": self.alpha_tao * self.tao_usd
+            if self.alpha_tao is not None and self.tao_usd is not None else None,
+            "updated_at": self.prices_at or None,
         }
 
     async def poll_loop(self) -> None:
@@ -384,7 +448,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--late-submit-remaining", type=int,
                    default=int(env("LATE_SUBMIT_REMAINING", "41")),
                    help="Blocks-remaining mark shown on the progress bar (0 = hide)")
-    p.add_argument("--poll-interval", type=float, default=float(env("POLL_INTERVAL", "3")))
+    p.add_argument("--scoring-finished-block", type=int,
+                   default=int(env("SCORING_FINISHED_BLOCK", "261")),
+                   help="Blocks-into-epoch mark where scoring finishes (0 = hide)")
+    p.add_argument("--netuid", type=int, default=int(env("NETUID", "68")),
+                   help="Subnet whose alpha price is shown")
+    p.add_argument("--price-interval", type=float, default=float(env("PRICE_INTERVAL", "30")),
+                   help="Seconds between price refreshes")
+    p.add_argument("--poll-interval", type=float, default=float(env("POLL_INTERVAL", "12")))
     return p.parse_args()
 
 
@@ -395,9 +466,11 @@ def build_app(args: argparse.Namespace) -> web.Application:
         mon = Monitor(args)
         app["monitor"] = mon
         app["poller"] = asyncio.create_task(mon.poll_loop())
+        app["pricer"] = asyncio.create_task(mon.price_loop())
 
     async def on_cleanup(app: web.Application) -> None:
         app["poller"].cancel()
+        app["pricer"].cancel()
         mon: Monitor = app["monitor"]
         mon._save_cache()
         await mon.rpc.close()
