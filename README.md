@@ -2,7 +2,7 @@
 
 A small web dashboard that shows the Nova **allowed reaction** for every epoch and
 the **live progress of the current epoch** (blocks passed / left, time left,
-scoring-finished and late-submit marks), plus the SN68 alpha price and TAO/USD
+scoring-finished and submit marks), plus the SN68 alpha price and TAO/USD
 price in the header.
 
 It's fully standalone. It doesn't import the nova project or bittensor, and it
@@ -57,7 +57,7 @@ Each option can be set as a command-line flag or as an environment variable.
 | `--epoch-length` | `EPOCH_LENGTH` | `361` | blocks per epoch |
 | `--total-reactions` | `TOTAL_REACTIONS` | `5` | reaction count (`rxn:1..N`) |
 | `--block-time` | `BLOCK_TIME` | `12` | seconds per block (for time estimates) |
-| `--late-submit-remaining` | `LATE_SUBMIT_REMAINING` | `41` | marks the late-submit trigger on the bar (`0` = hide) |
+| `--late-submit-remaining` | `LATE_SUBMIT_REMAINING` | `41` | marks where the submit window opens on the bar (`0` = hide) |
 | `--scoring-finished-block` | `SCORING_FINISHED_BLOCK` | `261` | marks where scoring finishes on the bar, in blocks into the epoch (`0` = hide) |
 | `--netuid` | `NETUID` | `68` | subnet whose alpha price is shown in the header |
 | `--price-interval` | `PRICE_INTERVAL` | `30` | seconds between price refreshes |

@@ -27,6 +27,8 @@
   --r4: #7a52d6; --r4-bg: #f0ebfc;
   --r5: #c9405b; --r5-bg: #fcebee;
 
+  --page-max: 2200px;
+
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -72,7 +74,7 @@ button { font: inherit; color: inherit; }
   backdrop-filter: blur(10px); border-bottom: 1px solid var(--border);
 }
 .topbar-in {
-  max-width: 1180px; margin: 0 auto; padding: 12px 24px;
+  max-width: var(--page-max); margin: 0 auto; padding: 12px 32px;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
 }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -100,9 +102,12 @@ button { font: inherit; color: inherit; }
   background: var(--surface); cursor: pointer; display: grid; place-items: center; color: var(--text-2);
 }
 .icon-btn:hover { color: var(--text); border-color: var(--text-3); }
+.icon-btn.on { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.icon-btn .slash { display: none; }
+.icon-btn:not(.on) .slash { display: inline; }
 
 /* ---------- layout ---------- */
-main { max-width: 1180px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+main { max-width: var(--page-max); margin: 0 auto; padding: 24px 32px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .card {
   background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
   box-shadow: var(--shadow);
@@ -116,7 +121,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px; display: grid; grid-tem
 .eyebrow { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
 
 /* ---------- hero ---------- */
-.hero { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; overflow: hidden; }
+.hero { display: grid; grid-template-columns: minmax(300px, 420px) 1fr; overflow: hidden; }
 .rxn-panel {
   padding: 24px; border-right: 1px solid var(--border);
   background: linear-gradient(160deg, var(--rc-bg, var(--surface-2)) 0%, transparent 75%);
@@ -158,7 +163,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px; display: grid; grid-tem
 .phase.open { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
 .phase.late { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
 
-.bar-wrap { position: relative; padding-top: 40px; }
+.bar-wrap { position: relative; padding-top: 50px; }
 .bar { position: relative; height: 14px; border-radius: 7px; background: var(--track); overflow: hidden; }
 .bar-fill {
   position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 7px;
@@ -168,13 +173,16 @@ main { max-width: 1180px; margin: 0 auto; padding: 24px; display: grid; grid-tem
   content: ""; position: absolute; inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,.22));
 }
-.marker { position: absolute; top: 0; bottom: -6px; width: 0; border-left: 2px dashed var(--text-3); }
+.marker { --mc: var(--text-2); position: absolute; top: 0; bottom: -6px; width: 0; border-left: 2px dashed var(--mc); }
 .marker span {
   position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap;
-  font-size: 11px; color: var(--text-3); font-weight: 550;
+  font-size: 13px; color: var(--mc); font-weight: 650;
+  background: var(--surface); padding: 0 6px; line-height: 20px;
 }
 .marker.right span { transform: translateX(-100%); padding-right: 6px; }
-.marker.low { top: 18px; }
+.marker.low { top: 24px; }
+.marker.score { --mc: var(--accent); }
+.marker.submit { --mc: var(--warn); }
 .scale { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11.5px; color: var(--text-3); }
 
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -259,7 +267,7 @@ td .muted, .muted { color: var(--text-3); }
 .table-foot { display: flex; justify-content: center; padding: 14px; border-top: 1px solid var(--border); }
 
 footer {
-  max-width: 1180px; margin: 0 auto; padding: 4px 24px 40px; color: var(--text-3); font-size: 12px;
+  max-width: var(--page-max); margin: 0 auto; padding: 4px 32px 40px; color: var(--text-3); font-size: 12px;
   display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
 }
 footer code { font-family: var(--mono); color: var(--text-2); }
@@ -320,6 +328,9 @@ footer code { font-family: var(--mono); color: var(--text-2); }
       <span class="pill" id="taoPill" title="">TAO <b class="num" id="taoPrice">—</b></span>
       <span class="pill" id="blockPill">Block <b class="num" id="topBlock">—</b></span>
       <span class="pill" title=""><span class="dot" id="connDot"></span><span id="netName">connecting…</span></span>
+      <button class="icon-btn" id="notifyBtn" title="Notifications off: click to turn on" aria-label="Toggle notifications">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path class="slash" d="M3 3l18 18"/></svg>
+      </button>
       <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
@@ -368,8 +379,8 @@ footer code { font-family: var(--mono); color: var(--text-2); }
 
       <div class="bar-wrap">
         <div class="bar"><div class="bar-fill" id="fill"></div></div>
-        <div class="marker" id="scoreMarker" hidden><span id="scoreMarkerLabel"></span></div>
-        <div class="marker low" id="marker" hidden><span id="markerLabel"></span></div>
+        <div class="marker score" id="scoreMarker" hidden><span id="scoreMarkerLabel"></span></div>
+        <div class="marker submit low" id="marker" hidden><span id="markerLabel"></span></div>
         <div class="scale num"><span id="scaleStart">—</span><span id="pct">—</span><span id="scaleEnd">—</span></div>
       </div>
 
@@ -479,9 +490,9 @@ footer code { font-family: var(--mono); color: var(--text-2); }
     if (d.toDateString() === now.toDateString()) return t;
     return d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + t;
   }
-  function toast(msg) {
+  function toast(msg, ms = 1400) {
     const t = $("toast"); t.textContent = msg; t.classList.add("show");
-    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 1400);
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), ms);
   }
   async function copy(text) {
     try { await navigator.clipboard.writeText(text); toast("Copied"); }
@@ -506,6 +517,62 @@ footer code { font-family: var(--mono); color: var(--text-2); }
     applyTheme(next);
     try { localStorage.setItem("rxn-theme", next); } catch {}
   });
+
+  // ---------- notifications ----------
+  // OS notifications need a secure context (HTTPS or localhost).
+  const canNotify = "Notification" in window && window.isSecureContext;
+  let notifyOn = false;
+  try { notifyOn = localStorage.getItem("rxn-notify") === "1"; } catch {}
+  const notifyActive = () => notifyOn && canNotify && Notification.permission === "granted";
+
+  function renderNotifyBtn() {
+    const b = $("notifyBtn");
+    b.classList.toggle("on", notifyActive());
+    b.title = notifyActive() ? "Notifications on: click to turn off"
+      : !canNotify ? "Notifications need HTTPS or localhost"
+      : Notification.permission === "denied" ? "Notifications are blocked for this site in browser settings"
+      : "Notifications off: click to turn on";
+  }
+  $("notifyBtn").addEventListener("click", async () => {
+    if (notifyActive()) {
+      notifyOn = false;
+      toast("Notifications off");
+    } else if (!canNotify) {
+      toast("Notifications need HTTPS or localhost", 4000);
+    } else {
+      if (Notification.permission === "default") await Notification.requestPermission();
+      notifyOn = Notification.permission === "granted";
+      toast(notifyOn ? "Notifications on" : "Notifications are blocked for this site in browser settings", notifyOn ? 1400 : 4000);
+    }
+    try { localStorage.setItem("rxn-notify", notifyOn ? "1" : "0"); } catch {}
+    renderNotifyBtn();
+  });
+  renderNotifyBtn();
+
+  function notify(title, body, tag) {
+    if (!notifyActive()) return;
+    try {
+      const n = new Notification(title, { body, tag, renotify: true });
+      n.onclick = () => { window.focus(); n.close(); };
+    } catch {}
+  }
+
+  // Sends notifications for boundaries crossed between two consecutive status polls.
+  function checkNotifications(prev, cur) {
+    if (!prev) return;
+    if (cur.current_epoch !== prev.current_epoch) {
+      const rx = cur.reaction;
+      notify(`Epoch #${fmt(cur.current_epoch)} started`,
+        rx ? `Allowed reaction: ${rx.label} (${prettyName(rx.name)})` : "Allowed reaction: unknown yet", "epoch");
+      return;
+    }
+    const crossed = (b) => b != null && prev.blocks_into_epoch < b && cur.blocks_into_epoch >= b;
+    const rx = cur.reaction ? ` · ${cur.reaction.label}` : "";
+    if (crossed(cur.scoring_finished_block))
+      notify("Scoring finished", `Epoch #${fmt(cur.current_epoch)} · block ${cur.scoring_finished_block}${rx}`, "scoring");
+    if (crossed(cur.late_submit_trigger_block))
+      notify("Submit window open", `Epoch #${fmt(cur.current_epoch)} · ${cur.blocks_remaining} blocks left${rx}`, "submit");
+  }
 
   // ---------- current epoch ----------
   function secondsLeft() {
@@ -547,7 +614,7 @@ footer code { font-family: var(--mono); color: var(--text-2); }
     $("sLeftSub").textContent = `until block ${fmt(S.next_epoch_start_block)}`;
     $("sBlock").textContent = fmt(S.current_block);
 
-    // Scoring-finished + late-submit markers, phase shows the next one ahead
+    // Scoring-finished + submit markers, phase shows the next one ahead
     const trig = S.late_submit_trigger_block, score = S.scoring_finished_block;
     const ph = $("phase");
     const placeMarker = (m, label, block, text) => {
@@ -561,13 +628,13 @@ footer code { font-family: var(--mono); color: var(--text-2); }
       return true;
     };
     const hasScore = placeMarker($("scoreMarker"), $("scoreMarkerLabel"), score, "scoring finished");
-    const hasTrig = placeMarker($("marker"), $("markerLabel"), trig, "late submit");
+    const hasTrig = placeMarker($("marker"), $("markerLabel"), trig, "submit");
     if (hasScore && into < score) {
       ph.className = "phase"; ph.textContent = `${fmt(score - into)} blocks to scoring finished`;
     } else if (hasTrig && into < trig) {
-      ph.className = "phase"; ph.textContent = (hasScore ? "Scoring finished · " : "") + `${fmt(trig - into)} blocks to late-submit window`;
+      ph.className = "phase"; ph.textContent = (hasScore ? "Scoring finished · " : "") + `${fmt(trig - into)} blocks to submit window`;
     } else if (hasTrig) {
-      ph.className = "phase open"; ph.textContent = "Late-submit window open";
+      ph.className = "phase open"; ph.textContent = "Submit window open";
     } else if (hasScore) {
       ph.className = "phase open"; ph.textContent = "Scoring finished";
     } else {
@@ -611,8 +678,10 @@ footer code { font-family: var(--mono); color: var(--text-2); }
   let failCount = 0;
   async function pollStatus() {
     try {
+      const prevS = S;
       const prevEpoch = S ? S.current_epoch : null;
       S = await api("/api/status");
+      checkNotifications(prevS, S);
       statusAt = Date.now();
       names = S.reaction_names || names;
       failCount = 0;
